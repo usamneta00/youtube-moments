@@ -1,0 +1,41 @@
+{
+  "manifest_version": 3,
+  "name": "YouTube AI Intelligence",
+  "version": "1.0",
+  "description": "YouTube AI Intelligence and Insights directly on the official YouTube website.",
+  "permissions": [
+    "activeTab"
+  ],
+  "host_permissions": [
+    "*://*.youtube.com/*",
+    "http://127.0.0.1:8000/*",
+    "http://localhost:8000/*"
+  ],
+  "background": {
+    "scripts": [
+      "background.js"
+    ]
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://*.youtube.com/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "css": [
+        "content.css"
+      ]
+    }
+  ],
+  "action": {
+    "default_title": "YouTube AI Intelligence"
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "yt-intelligence@nexus.com",
+      "strict_min_version": "109.0"
+    }
+  }
+}

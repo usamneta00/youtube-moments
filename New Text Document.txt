@@ -1,0 +1,188 @@
+C:\Users\Administrator\Desktop\abd - alshhabi0000>pip install pstools
+Collecting pstools
+  Downloading pstools-0.5.1.1-py2.py3-none-any.whl.metadata (453 bytes)
+Collecting meander (from pstools)
+  Downloading meander-0.0.3-py3-none-any.whl.metadata (473 bytes)
+Collecting astropy (from pstools)
+  Downloading astropy-7.2.0-cp311-abi3-win_amd64.whl.metadata (11 kB)
+Collecting numpy (from pstools)
+  Downloading numpy-2.4.4-cp314-cp314-win_amd64.whl.metadata (6.6 kB)
+Collecting healpy (from pstools)
+  Downloading healpy-1.19.0.tar.gz (4.1 MB)
+     ━━━━━━━━━━━━━━━╺━━━━━━━━━━━━━━━━━━━━━━━━ 1.6/4.1 MB 44.4 kB/s eta 0:00:57
+
+[notice] A new release of pip is available: 26.0.1 -> 26.1
+[notice] To update, run: python.exe -m pip install --upgrade pip
+ERROR: Operation cancelled by user
+
+C:\Users\Administrator\Desktop\abd - alshhabi0000>
+
+C:\Users\Administrator\Desktop\abd - alshhabi0000>pip install setuptools
+Collecting setuptools
+  Using cached setuptools-82.0.1-py3-none-any.whl.metadata (6.5 kB)
+Using cached setuptools-82.0.1-py3-none-any.whl (1.0 MB)
+Installing collected packages: setuptools
+Successfully installed setuptools-82.0.1
+
+[notice] A new release of pip is available: 26.0.1 -> 26.1
+[notice] To update, run: python.exe -m pip install --upgrade pip
+
+C:\Users\Administrator\Desktop\abd - alshhabi0000>python server.py
+INFO:     Started server process [9088]
+INFO:     Waiting for application startup.
+2026-05-03 22:53:57,318 - INFO - ==================================================
+INFO:     Application startup complete.
+2026-05-03 22:53:57,319 - INFO - SCRAPER STARTING/RESTARTING...
+2026-05-03 22:53:57,319 - INFO - ==================================================
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+2026-05-03 22:54:00,155 - ERROR - Scraper error in loop: Message: session not created: cannot connect to chrome at 127.0.0.1:59853
+from session not created: This version of ChromeDriver only supports Chrome version 148
+Current browser version is 147.0.7727.138; For documentation on this error, please visit: https://www.selenium.dev/documentation/webdriver/troubleshooting/errors#sessionnotcreatedexception
+Stacktrace:
+        chromedriver!GetHandleVerifier [0x7ff61cb0d6d5+14ef5]
+        chromedriver!GetHandleVerifier [0x7ff61cb0d740+14f60]
+        chromedriver!(No symbol) [0x7ff61c85d59d]
+        chromedriver!(No symbol) [0x7ff61c8a5fad]
+        chromedriver!(No symbol) [0x7ff61c8a4d05]
+        chromedriver!(No symbol) [0x7ff61c89926e]
+        chromedriver!(No symbol) [0x7ff61c8ed9e1]
+        chromedriver!(No symbol) [0x7ff61c8ed246]
+        chromedriver!(No symbol) [0x7ff61c8a9608]
+        chromedriver!(No symbol) [0x7ff61c8aa4f3]
+        chromedriver!GetHandleVerifier [0x7ff61ce0b779+312f99]
+        chromedriver!GetHandleVerifier [0x7ff61ce05c8b+30d4ab]
+        chromedriver!GetHandleVerifier [0x7ff61ce29012+330832]
+        chromedriver!GetHandleVerifier [0x7ff61cb2a485+31ca5]
+        chromedriver!GetHandleVerifier [0x7ff61cb32e7c+3a69c]
+        chromedriver!GetHandleVerifier [0x7ff61cb16a74+1e294]
+        chromedriver!GetHandleVerifier [0x7ff61cb16c04+1e424]
+        chromedriver!GetHandleVerifier [0x7ff61cafb327+2b47]
+        KERNEL32!BaseThreadInitThunk [0x7ffd5223e8d7+17]
+        ntdll!RtlUserThreadStart [0x7ffd5434c53c+2c]
+
+2026-05-03 22:54:00,156 - INFO - Restarting scraper in 10 seconds...
+2026-05-03 22:54:10,158 - INFO - ==================================================
+2026-05-03 22:54:10,158 - INFO - SCRAPER STARTING/RESTARTING...
+2026-05-03 22:54:10,159 - INFO - ==================================================
+2026-05-03 22:54:12,771 - ERROR - Scraper error in loop: Message: session not created: cannot connect to chrome at 127.0.0.1:58449
+from session not created: This version of ChromeDriver only supports Chrome version 148
+Current browser version is 147.0.7727.138; For documentation on this error, please visit: https://www.selenium.dev/documentation/webdriver/troubleshooting/errors#sessionnotcreatedexception
+Stacktrace:
+        chromedriver!GetHandleVerifier [0x7ff61cb0d6d5+14ef5]
+        chromedriver!GetHandleVerifier [0x7ff61cb0d740+14f60]
+        chromedriver!(No symbol) [0x7ff61c85d59d]
+        chromedriver!(No symbol) [0x7ff61c8a5fad]
+        chromedriver!(No symbol) [0x7ff61c8a4d05]
+        chromedriver!(No symbol) [0x7ff61c89926e]
+        chromedriver!(No symbol) [0x7ff61c8ed9e1]
+        chromedriver!(No symbol) [0x7ff61c8ed246]
+        chromedriver!(No symbol) [0x7ff61c8a9608]
+        chromedriver!(No symbol) [0x7ff61c8aa4f3]
+        chromedriver!GetHandleVerifier [0x7ff61ce0b779+312f99]
+        chromedriver!GetHandleVerifier [0x7ff61ce05c8b+30d4ab]
+        chromedriver!GetHandleVerifier [0x7ff61ce29012+330832]
+        chromedriver!GetHandleVerifier [0x7ff61cb2a485+31ca5]
+        chromedriver!GetHandleVerifier [0x7ff61cb32e7c+3a69c]
+        chromedriver!GetHandleVerifier [0x7ff61cb16a74+1e294]
+        chromedriver!GetHandleVerifier [0x7ff61cb16c04+1e424]
+        chromedriver!GetHandleVerifier [0x7ff61cafb327+2b47]
+        KERNEL32!BaseThreadInitThunk [0x7ffd5223e8d7+17]
+        ntdll!RtlUserThreadStart [0x7ffd5434c53c+2c]
+
+2026-05-03 22:54:12,771 - INFO - Restarting scraper in 10 seconds...
+2026-05-03 22:54:22,772 - INFO - ==================================================
+2026-05-03 22:54:22,773 - INFO - SCRAPER STARTING/RESTARTING...
+2026-05-03 22:54:22,773 - INFO - ==================================================
+2026-05-03 22:54:25,442 - ERROR - Scraper error in loop: Message: session not created: cannot connect to chrome at 127.0.0.1:58496
+from session not created: This version of ChromeDriver only supports Chrome version 148
+Current browser version is 147.0.7727.138; For documentation on this error, please visit: https://www.selenium.dev/documentation/webdriver/troubleshooting/errors#sessionnotcreatedexception
+Stacktrace:
+        chromedriver!GetHandleVerifier [0x7ff61cb0d6d5+14ef5]
+        chromedriver!GetHandleVerifier [0x7ff61cb0d740+14f60]
+        chromedriver!(No symbol) [0x7ff61c85d59d]
+        chromedriver!(No symbol) [0x7ff61c8a5fad]
+        chromedriver!(No symbol) [0x7ff61c8a4d05]
+        chromedriver!(No symbol) [0x7ff61c89926e]
+        chromedriver!(No symbol) [0x7ff61c8ed9e1]
+        chromedriver!(No symbol) [0x7ff61c8ed246]
+        chromedriver!(No symbol) [0x7ff61c8a9608]
+        chromedriver!(No symbol) [0x7ff61c8aa4f3]
+        chromedriver!GetHandleVerifier [0x7ff61ce0b779+312f99]
+        chromedriver!GetHandleVerifier [0x7ff61ce05c8b+30d4ab]
+        chromedriver!GetHandleVerifier [0x7ff61ce29012+330832]
+        chromedriver!GetHandleVerifier [0x7ff61cb2a485+31ca5]
+        chromedriver!GetHandleVerifier [0x7ff61cb32e7c+3a69c]
+        chromedriver!GetHandleVerifier [0x7ff61cb16a74+1e294]
+        chromedriver!GetHandleVerifier [0x7ff61cb16c04+1e424]
+        chromedriver!GetHandleVerifier [0x7ff61cafb327+2b47]
+        KERNEL32!BaseThreadInitThunk [0x7ffd5223e8d7+17]
+        ntdll!RtlUserThreadStart [0x7ffd5434c53c+2c]
+
+2026-05-03 22:54:25,442 - INFO - Restarting scraper in 10 seconds...
+2026-05-03 22:54:35,443 - INFO - ==================================================
+2026-05-03 22:54:35,443 - INFO - SCRAPER STARTING/RESTARTING...
+2026-05-03 22:54:35,444 - INFO - ==================================================
+2026-05-03 22:54:38,113 - ERROR - Scraper error in loop: Message: session not created: cannot connect to chrome at 127.0.0.1:50915
+from session not created: This version of ChromeDriver only supports Chrome version 148
+Current browser version is 147.0.7727.138; For documentation on this error, please visit: https://www.selenium.dev/documentation/webdriver/troubleshooting/errors#sessionnotcreatedexception
+Stacktrace:
+        chromedriver!GetHandleVerifier [0x7ff61cb0d6d5+14ef5]
+        chromedriver!GetHandleVerifier [0x7ff61cb0d740+14f60]
+        chromedriver!(No symbol) [0x7ff61c85d59d]
+        chromedriver!(No symbol) [0x7ff61c8a5fad]
+        chromedriver!(No symbol) [0x7ff61c8a4d05]
+        chromedriver!(No symbol) [0x7ff61c89926e]
+        chromedriver!(No symbol) [0x7ff61c8ed9e1]
+        chromedriver!(No symbol) [0x7ff61c8ed246]
+        chromedriver!(No symbol) [0x7ff61c8a9608]
+        chromedriver!(No symbol) [0x7ff61c8aa4f3]
+        chromedriver!GetHandleVerifier [0x7ff61ce0b779+312f99]
+        chromedriver!GetHandleVerifier [0x7ff61ce05c8b+30d4ab]
+        chromedriver!GetHandleVerifier [0x7ff61ce29012+330832]
+        chromedriver!GetHandleVerifier [0x7ff61cb2a485+31ca5]
+        chromedriver!GetHandleVerifier [0x7ff61cb32e7c+3a69c]
+        chromedriver!GetHandleVerifier [0x7ff61cb16a74+1e294]
+        chromedriver!GetHandleVerifier [0x7ff61cb16c04+1e424]
+        chromedriver!GetHandleVerifier [0x7ff61cafb327+2b47]
+        KERNEL32!BaseThreadInitThunk [0x7ffd5223e8d7+17]
+        ntdll!RtlUserThreadStart [0x7ffd5434c53c+2c]
+
+2026-05-03 22:54:38,113 - INFO - Restarting scraper in 10 seconds...
+2026-05-03 22:54:48,115 - INFO - ==================================================
+2026-05-03 22:54:48,115 - INFO - SCRAPER STARTING/RESTARTING...
+2026-05-03 22:54:48,116 - INFO - ==================================================
+2026-05-03 22:54:50,800 - ERROR - Scraper error in loop: Message: session not created: cannot connect to chrome at 127.0.0.1:60239
+from session not created: This version of ChromeDriver only supports Chrome version 148
+Current browser version is 147.0.7727.138; For documentation on this error, please visit: https://www.selenium.dev/documentation/webdriver/troubleshooting/errors#sessionnotcreatedexception
+Stacktrace:
+        chromedriver!GetHandleVerifier [0x7ff61cb0d6d5+14ef5]
+        chromedriver!GetHandleVerifier [0x7ff61cb0d740+14f60]
+        chromedriver!(No symbol) [0x7ff61c85d59d]
+        chromedriver!(No symbol) [0x7ff61c8a5fad]
+        chromedriver!(No symbol) [0x7ff61c8a4d05]
+        chromedriver!(No symbol) [0x7ff61c89926e]
+        chromedriver!(No symbol) [0x7ff61c8ed9e1]
+        chromedriver!(No symbol) [0x7ff61c8ed246]
+        chromedriver!(No symbol) [0x7ff61c8a9608]
+        chromedriver!(No symbol) [0x7ff61c8aa4f3]
+        chromedriver!GetHandleVerifier [0x7ff61ce0b779+312f99]
+        chromedriver!GetHandleVerifier [0x7ff61ce05c8b+30d4ab]
+        chromedriver!GetHandleVerifier [0x7ff61ce29012+330832]
+        chromedriver!GetHandleVerifier [0x7ff61cb2a485+31ca5]
+        chromedriver!GetHandleVerifier [0x7ff61cb32e7c+3a69c]
+        chromedriver!GetHandleVerifier [0x7ff61cb16a74+1e294]
+        chromedriver!GetHandleVerifier [0x7ff61cb16c04+1e424]
+        chromedriver!GetHandleVerifier [0x7ff61cafb327+2b47]
+        KERNEL32!BaseThreadInitThunk [0x7ffd5223e8d7+17]
+        ntdll!RtlUserThreadStart [0x7ffd5434c53c+2c]
+
+2026-05-03 22:54:50,800 - INFO - Restarting scraper in 10 seconds...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [9088]
+2026-05-03 22:54:53,137 - INFO - ensuring close
+2026-05-03 22:54:53,138 - INFO - ensuring close
+2026-05-03 22:54:53,139 - INFO - ensuring close
+2026-05-03 22:54:53,140 - INFO - ensuring close
+2026-05-03 22:54:53,141 - INFO - ensuring close

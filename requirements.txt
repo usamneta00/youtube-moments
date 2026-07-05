@@ -1,0 +1,11 @@
+undetected-chromedriver
+selenium
+beautifulsoup4
+fastapi
+uvicorn
+requests
+yt-dlp
+jinja2
+python-multipart
+sqlalchemy
+edge-tts

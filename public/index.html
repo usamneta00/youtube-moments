@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>متابع تحديثات Guardian المباشر</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['"Noto Sans Arabic"', 'Arial', 'sans-serif'] },
+                    colors: { ink: '#101418', paper: '#f7f4ee', guard: '#052962', accent: '#c70000' }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: "Noto Sans Arabic", Arial, sans-serif; }
+        .update-card:first-child { border-color: rgba(199, 0, 0, .45); }
+        .pulse-dot { box-shadow: 0 0 0 0 rgba(22, 163, 74, .7); animation: pulse 1.8s infinite; }
+        @keyframes pulse {
+            70% { box-shadow: 0 0 0 10px rgba(22, 163, 74, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(22, 163, 74, 0); }
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-paper text-ink">
+    <main class="mx-auto flex min-h-screen w-full max-w-6xl flex-col px-4 py-5 sm:px-6 lg:px-8">
+        <section class="grid gap-6 lg:grid-cols-[420px_1fr]">
+            <aside class="lg:sticky lg:top-5 lg:h-[calc(100vh-40px)]">
+                <div class="flex h-full flex-col gap-4 rounded-lg border border-black/10 bg-white p-5 shadow-sm">
+                    <div class="mb-3 flex items-center gap-3">
+                        <div class="flex h-11 w-11 items-center justify-center rounded-md bg-guard text-white">
+                            <i data-lucide="radio" class="h-6 w-6"></i>
+                        </div>
+                        <div>
+                            <h1 class="text-2xl font-extrabold leading-tight">متابع التحديثات المباشر</h1>
+                            <p class="text-sm font-medium text-black/55">Guardian liveblog reader</p>
+                        </div>
+                    </div>
+
+                    <label class="space-y-2">
+                        <span class="text-sm font-bold">رابط صفحة التحديثات</span>
+                        <textarea id="live-url" rows="4" class="w-full resize-none rounded-md border border-black/15 bg-white px-3 py-3 text-left text-sm leading-6 outline-none transition focus:border-guard focus:ring-2 focus:ring-guard/15" dir="ltr">https://www.theguardian.com/football/live/2026/jun/21/spain-v-saudi-arabia-world-cup-2026-live</textarea>
+                    </label>
+
+                    <div class="grid grid-cols-2 gap-2">
+                        <button id="start-btn" class="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-guard px-4 text-sm font-extrabold text-white transition hover:bg-[#0a3b86]">
+                            <i data-lucide="play" class="h-4 w-4"></i>
+                            ابدأ المتابعة
+                        </button>
+                        <button id="voice-btn" class="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-black/15 bg-white px-4 text-sm font-extrabold transition hover:bg-black/5">
+                            <i data-lucide="volume-2" class="h-4 w-4"></i>
+                            تفعيل الصوت
+                        </button>
+                    </div>
+
+                    <button id="copy-all-btn" class="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-guard/25 bg-guard/5 px-4 text-sm font-extrabold text-guard transition hover:bg-guard hover:text-white">
+                        <i data-lucide="copy" class="h-4 w-4"></i>
+                        نسخ النص بالكامل
+                    </button>
+
+                    <button id="listen-all-btn" class="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-accent/25 bg-accent/5 px-4 text-sm font-extrabold text-accent transition hover:bg-accent hover:text-white">
+                        <i data-lucide="list-music" class="h-4 w-4"></i>
+                        استماع لكل التحديثات
+                    </button>
+
+                    <div class="grid grid-cols-3 gap-2 text-center">
+                        <div class="rounded-md border border-black/10 bg-paper p-3">
+                            <div id="update-count" class="text-xl font-extrabold">0</div>
+                            <div class="text-xs font-bold text-black/50">تحديث</div>
+                        </div>
+                        <div class="rounded-md border border-black/10 bg-paper p-3">
+                            <div id="page-count" class="text-xl font-extrabold">0</div>
+                            <div class="text-xs font-bold text-black/50">صفحات</div>
+                        </div>
+                        <div class="rounded-md border border-black/10 bg-paper p-3">
+                            <div id="voice-state" class="text-xl font-extrabold">لا</div>
+                            <div class="text-xs font-bold text-black/50">صوت</div>
+                        </div>
+                    </div>
+
+                    <div class="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm leading-7 text-amber-950">
+                        المتصفح لا يسمح عادة بتشغيل الصوت تلقائياً قبل أول تفاعل. اضغط "تفعيل الصوت" مرة واحدة، وبعدها سيقرأ الموقع أي تحديث جديد فور ظهوره.
+                    </div>
+
+                    <div class="mt-auto rounded-md border border-black/10 bg-ink p-4 text-white">
+                        <div class="mb-2 flex items-center gap-2 text-sm font-bold">
+                            <span id="status-dot" class="h-2.5 w-2.5 rounded-full bg-zinc-400"></span>
+                            <span id="status-text">جاهز</span>
+                        </div>
+                        <div id="last-check" class="text-xs font-medium text-white/60">لم يتم الفحص بعد</div>
+                    </div>
+                </div>
+            </aside>
+
+            <section class="min-h-[calc(100vh-40px)] rounded-lg border border-black/10 bg-white shadow-sm">
+                <div class="flex flex-wrap items-center justify-between gap-3 border-b border-black/10 p-5">
+                    <div>
+                        <h2 class="text-xl font-extrabold">كل التحديثات</h2>
+                        <p id="source-label" class="mt-1 max-w-2xl truncate text-left text-xs font-medium text-black/45" dir="ltr"></p>
+                    </div>
+                    <button id="clear-btn" class="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-black/15 px-3 text-sm font-bold hover:bg-black/5">
+                        <i data-lucide="trash-2" class="h-4 w-4"></i>
+                        مسح القائمة
+                    </button>
+                </div>
+                <div id="updates" class="space-y-3 p-5">
+                    <div class="rounded-md border border-dashed border-black/20 p-8 text-center text-black/50">
+                        ضع الرابط واضغط ابدأ المتابعة.
+                    </div>
+                </div>
+            </section>
+        </section>
+    </main>
+    <script src="app.js"></script>
+</body>
+</html>
