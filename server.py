@@ -296,27 +296,25 @@ async def analyze_video_highlights_ai(srt_content, duration=0, title="", mode="h
             task_desc = "استخرج أهم مبدأين تأسيسيين فقط من هذا الجزء. اكتب بالعربية فقط."
             system_msg = "أنت محلل جيوسياسي وفيلسوف استراتيجي. استخرج المبادئ المؤسسة والحقائق الصلبة التي تحرك الأحداث. أعد المحتوى بالعربية فقط."
         else:
-            task_desc = """Identify the most powerful, analytical, and discussion-focused moments.
-            Focus strictly on moments containing deep political, military, or economic analysis, expert interviews, or major media citations.
-            Avoid superficial or simple news readings.
-            
-            CRITICAL CONSTRAINTS for 'reason_ar':
-            1. DO NOT describe the video, the analysis, or the narrator from the outside. DO NOT use phrases like 'يطرح المقطع الافتتاحي', 'يتناول التحليل', 'يصف التحليل', 'تستند هذه اللحظة', 'المقطع يوضح'.
-            2. State the core analytical argument, fact, or news directly as a statement.
-            3. Follow this structure for 'reason_ar' in Arabic:
-               - [صياغة الحجة أو الخبر أو التحليل مباشرة وبشكل موضوعي]
-               - خلاصة توضح كيف يمكن استخدام هذا الفيديو/المقطع لصناعة نقاش طويل ومترابط.
-               - أي تناقضات أو وجهات نظر متعارضة في التحليل إن وجدت.
-               - أي تطور عاجل أو خبر أخير متعلق بالقضية ومصدره إن وجد."""
-            system_msg = "You are a senior geopolitical analyst. When writing 'reason_ar', write the facts and arguments directly. Never describe the video or the narrator's actions (e.g. do not say 'yashrah al-maqta'). Follow the structured format precisely in Arabic."
+            task_desc = """اختر أقوى لحظتين فقط تصلحان لصناعة نقاش طويل ومترابط.
+ركز على السياسة أو الحرب أو الاقتصاد أو تصريحات الخبراء أو الاستشهادات الإعلامية المهمة.
+تجاهل القراءة الخبرية السطحية.
+في reason_ar اكتب مباشرة:
+1. الحجة أو الخبر أو التحليل.
+2. لماذا تصلح اللحظة لبناء نقاش طويل ومترابط.
+3. التناقضات أو وجهات النظر المتعارضة إن وجدت.
+4. أي تطور عاجل أو خبر أخير مذكور في النص ومصدره إن وجد.
+ممنوع وصف الفيديو من الخارج؛ لا تقل: يطرح المقطع، يتناول التحليل، يصف التحليل، المقطع يوضح."""
+            system_msg = "You are a senior geopolitical analyst. Return concise Arabic JSON only. Write facts and arguments directly; never describe the video or narrator."
         prompt = f"""Below is segment (Part {part_index + 1}/{num_parts}) of a video transcript in SRT format.
 VIDEO TITLE: {title}
 TIME RANGE: {t0} to {t1}
 TASK: {task_desc}
 CONSTRAINTS:
 1. EVERYTHING in ARABIC.
-2. Result strictly in JSON list.
-3. For each moment: title (max 5 words), start_time (exact SRT timestamp), seconds (integer), reason_ar (explanation).
+2. Result strictly in JSON list. No markdown.
+3. Return at most 2 moments.
+4. For each moment: title (max 5 words), start_time (exact SRT timestamp), seconds (integer), reason_ar (4 concise lines max).
         SRT SEGMENT:
 {part_srt}"""
 
