@@ -18,6 +18,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 import uvicorn
 import requests
+from requests.exceptions import Timeout
 
 # SQLAlchemy
 from sqlalchemy import create_engine, Column, Integer, String, DateTime, Text, desc
@@ -128,14 +129,20 @@ def parse_srt_cues(srt_content: str) -> List[Dict[str, Any]]:
         cues.append({"start_str": start_str, "end_str": end_str, "start_sec": ss, "end_sec": es, "text": text})
     return cues
 
-def split_cues_into_time_windows(cues, window_sec=600):
+def split_cues_into_time_windows(cues, window_sec=240, max_chars=5000):
     if not cues: return []
     chunks, chunk = [], [cues[0]]
     anchor = cues[0]["start_sec"]
+    chunk_chars = len(cues[0].get("text", ""))
     for c in cues[1:]:
-        if c["start_sec"] - anchor >= window_sec:
-            chunks.append(chunk); chunk = []; anchor = c["start_sec"]
+        cue_chars = len(c.get("text", "")) + 40
+        if c["start_sec"] - anchor >= window_sec or chunk_chars + cue_chars >= max_chars:
+            chunks.append(chunk)
+            chunk = []
+            anchor = c["start_sec"]
+            chunk_chars = 0
         chunk.append(c)
+        chunk_chars += cue_chars
     if chunk: chunks.append(chunk)
     return chunks
 
@@ -234,14 +241,14 @@ def nvidia_ai_chat(messages):
     payload = {
         "model": NVIDIA_MODEL,
         "messages": messages,
-        "max_tokens": 1200,
+        "max_tokens": 700,
         "temperature": 0.2,
         "top_p": 0.95,
         "stream": False,
     }
 
     for attempt in range(3):
-        response = requests.post(NVIDIA_API_URL, headers=headers, json=payload, timeout=(10, 75))
+        response = requests.post(NVIDIA_API_URL, headers=headers, json=payload, timeout=(10, 45))
 
         if response.status_code == 429:
             wait_seconds = min(int(response.headers.get("Retry-After", 20)), 60)
@@ -276,7 +283,7 @@ async def analyze_video_highlights_ai(srt_content, duration=0, title="", mode="h
     max_end = max(c["end_sec"] for c in cues)
     duration_cap = int(max(duration, int(max_end) + 1)) if duration > 0 else int(max_end) + 1
     
-    time_windows = split_cues_into_time_windows(cues, window_sec=600)
+    time_windows = split_cues_into_time_windows(cues, window_sec=240, max_chars=5000)
     num_parts = len(time_windows)
     all_highlights = []
     logger.info(f"[AI] mode={mode}; transcript split into {num_parts} part(s)")
@@ -286,32 +293,20 @@ async def analyze_video_highlights_ai(srt_content, duration=0, title="", mode="h
         t0, t1 = part_cues[0]["start_str"], part_cues[-1]["end_str"]
 
         if mode == "first_principles":
-            task_desc = """STRIP AWAY all journalism, emotions, and narrative. Identify the "First Principles" (Foundational Truths).
-            A First Principle is an underlying reality or structural cause that remains true even without names and places.
-            Titles must be "Core Realities". Reasons must explain the "Undeniable Logic" behind the moment."""
+            task_desc = "استخرج أهم مبدأين تأسيسيين فقط من هذا الجزء. اكتب بالعربية فقط."
             system_msg = "أنت محلل جيوسياسي وفيلسوف استراتيجي. استخرج المبادئ المؤسسة والحقائق الصلبة التي تحرك الأحداث. أعد المحتوى بالعربية فقط."
         else:
-            task_desc = """Identify the most powerful, analytical, and discussion-focused moments.
-            Focus strictly on moments containing deep political, military, or economic analysis, expert interviews, or major media citations.
-            Avoid superficial or simple news readings.
-            
-            CRITICAL CONSTRAINTS for 'reason_ar':
-            1. DO NOT describe the video, the analysis, or the narrator from the outside. DO NOT use phrases like 'يطرح المقطع الافتتاحي', 'يتناول التحليل', 'يصف التحليل', 'تستند هذه اللحظة', 'المقطع يوضح'.
-            2. State the core analytical argument, fact, or news directly as a statement.
-            3. Follow this structure for 'reason_ar' in Arabic:
-               - [صياغة الحجة أو الخبر أو التحليل مباشرة وبشكل موضوعي]
-               - خلاصة توضح كيف يمكن استخدام هذا الفيديو/المقطع لصناعة نقاش طويل ومترابط.
-               - أي تناقضات أو وجهات نظر متعارضة في التحليل إن وجدت.
-               - أي تطور عاجل أو خبر أخير متعلق بالقضية ومصدره إن وجد."""
-            system_msg = "You are a senior geopolitical analyst. When writing 'reason_ar', write the facts and arguments directly. Never describe the video or the narrator's actions (e.g. do not say 'yashrah al-maqta'). Follow the structured format precisely in Arabic."
+            task_desc = "استخرج أقوى لحظتين تحليليتين فقط من هذا الجزء. ركز على السياسة أو الحرب أو الاقتصاد. لا تصف الفيديو من الخارج؛ اكتب الحجة أو الخبر مباشرة."
+            system_msg = "You are a senior geopolitical analyst. Return concise Arabic JSON only."
         prompt = f"""Below is segment (Part {part_index + 1}/{num_parts}) of a video transcript in SRT format.
 VIDEO TITLE: {title}
 TIME RANGE: {t0} to {t1}
 TASK: {task_desc}
 CONSTRAINTS:
 1. EVERYTHING in ARABIC.
-2. Result strictly in JSON list.
-3. For each moment: title (max 5 words), start_time (exact SRT timestamp), seconds (integer), reason_ar (explanation).
+2. Return strictly a JSON list. No markdown.
+3. Return at most 2 items.
+4. Each item: title (max 5 words), start_time (exact SRT timestamp), seconds (integer), reason_ar (2 concise sentences).
         SRT SEGMENT:
 {part_srt}"""
 
@@ -322,25 +317,35 @@ CONSTRAINTS:
             if match:
                 return json.loads(match.group(0))
             return []
-        except NvidiaRateLimitError:
+        except (NvidiaRateLimitError, Timeout):
             raise
         except Exception as e:
             logger.error(f"AI error part {part_index}: {e}")
-            return []
+            return None
 
     semaphore = asyncio.Semaphore(2)
 
     async def fetch_limited(i, part_cues):
         async with semaphore:
             logger.info(f"[AI] part {i + 1}/{num_parts}: sending to MiniMax")
-            return i, part_cues, await fetch_moments_for_part(i, part_cues)
+            try:
+                return i, part_cues, await fetch_moments_for_part(i, part_cues)
+            except (NvidiaRateLimitError, Timeout):
+                logger.error(f"[AI] part {i + 1}/{num_parts}: MiniMax request timed out or rate limited")
+                return i, part_cues, None
 
     tasks = [fetch_limited(i, part_cues) for i, part_cues in enumerate(time_windows)]
     completed_count = 0
+    failed_count = 0
     for done in asyncio.as_completed(tasks):
         i, part_cues, chunk = await done
         completed_count += 1
-        if chunk:
+        if chunk is None:
+            failed_count += 1
+            logger.error(f"[AI] part {i + 1}/{num_parts}: failed")
+            if progress_callback:
+                await progress_callback(all_highlights, completed_count, num_parts, False)
+        elif chunk:
             for h in chunk:
                 if isinstance(h, dict):
                     h["seconds"] = resolve_highlight_seconds(h, part_cues, i, duration_cap)
@@ -355,6 +360,8 @@ CONSTRAINTS:
 
     all_highlights = dedupe_highlights_by_time(all_highlights, gap_sec=5.0)
     all_highlights.sort(key=lambda x: x.get("seconds", 0))
+    if not all_highlights and failed_count == num_parts:
+        raise RuntimeError("MiniMax analysis timed out for all transcript parts")
     logger.info(f"[AI] complete: extracted {len(all_highlights)} item(s)")
     return all_highlights
 
@@ -597,6 +604,14 @@ async def run_analysis_background(video_id: int, mode: str):
                 current = db.query(Video).filter(Video.id == video_id).first()
                 if not current:
                     return
+                if not items and not complete:
+                    ANALYSIS_STATUS[lock_key] = {
+                        "state": "running",
+                        "items": 0,
+                        "completed_parts": completed_parts,
+                        "total_parts": total_parts,
+                    }
+                    return
                 payload = json.dumps(items, ensure_ascii=False)
                 if mode == "first_principles":
                     current.first_principles = payload
@@ -673,6 +688,16 @@ async def get_video_insight(
         try:
             cached_items = json.loads(cached)
             analyzing = status.get("state") == "running"
+            if status.get("state") == "error" and not cached_items:
+                return {
+                    "video_id": video_id,
+                    "highlights": [],
+                    "mode": mode,
+                    "cached": False,
+                    "analyzing": False,
+                    "error": status.get("error", "Analysis failed"),
+                    "progress": status,
+                }
             return {
                 "video_id": video_id,
                 "highlights": cached_items,
