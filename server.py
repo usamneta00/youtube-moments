@@ -39,6 +39,8 @@ IS_HEADLESS = os.environ.get("HEADLESS", "0") == "1"
 # Telegram
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 CHANNEL_ID = os.environ.get("CHANNEL_ID", "@osamaalshahape")
+ANALYSIS_LOCKS = {}
+ANALYSIS_STATUS = {}
 
 # Database
 DATA_DIR = "/data" if os.path.exists("/data") else "."
@@ -181,7 +183,7 @@ def fetch_youtube_subs_downsub(video_url, formats=['txt', 'srt']):
 
     for attempt in range(1, max_retries + 1):
         try:
-            logger.info(f"[DownSub] ظ…ط­ط§ظˆظ„ط© {attempt}/{max_retries} ظ„ظ€ {video_url}")
+            logger.info(f"[DownSub] attempt {attempt}/{max_retries}: fetching transcript for {video_url}")
             resp = requests.post(api_url, headers=headers, json=payload, timeout=55)
             resp.raise_for_status()
             data = resp.json()
@@ -190,7 +192,7 @@ def fetch_youtube_subs_downsub(video_url, formats=['txt', 'srt']):
             
             subs = data.get('data', {}).get('subtitles', [])
             if not subs:
-                return {**results, "error": "ظ„ط§ طھظˆط¬ط¯ طھط±ط¬ظ…ط§طھ"}
+                return {**results, "error": "No subtitles were found for this video"}
             
             results["title"] = data.get('data', {}).get('title')
             selected = subs[0]
@@ -212,7 +214,7 @@ def fetch_youtube_subs_downsub(video_url, formats=['txt', 'srt']):
         except Exception as e:
             if attempt < max_retries: time.sleep(2 ** (attempt - 1))
     
-    return {**results, "error": "ظپط´ظ„ ط¬ظ„ط¨ ط§ظ„طھط±ط¬ظ…ط© ط¨ط¹ط¯ ط¹ط¯ط© ظ…ط­ط§ظˆظ„ط§طھ"}
+    return {**results, "error": "Failed to fetch transcript after several attempts"}
 
 
 # ============================================
@@ -277,7 +279,7 @@ async def analyze_video_highlights_ai(srt_content, duration=0, title="", mode="h
     time_windows = split_cues_into_time_windows(cues, window_sec=600)
     num_parts = len(time_windows)
     all_highlights = []
-    logger.info(f"ًں§  [AI] mode={mode}, طھظ‚ط³ظٹظ… SRT ط¥ظ„ظ‰ {num_parts} ط£ط¬ط²ط§ط،...")
+    logger.info(f"[AI] mode={mode}; transcript split into {num_parts} part(s)")
 
     async def fetch_moments_for_part(part_index, part_cues):
         part_srt = cues_to_srt_string(part_cues)
@@ -287,20 +289,20 @@ async def analyze_video_highlights_ai(srt_content, duration=0, title="", mode="h
             task_desc = """STRIP AWAY all journalism, emotions, and narrative. Identify the "First Principles" (Foundational Truths).
             A First Principle is an underlying reality or structural cause that remains true even without names and places.
             Titles must be "Core Realities". Reasons must explain the "Undeniable Logic" behind the moment."""
-            system_msg = "ط£ظ†طھ ظ…ط­ظ„ظ„ ط¬ظٹظˆط³ظٹط§ط³ظٹ ظˆظپظٹظ„ط³ظˆظپ ط§ط³طھط±ط§طھظٹط¬ظٹ. ط§ط³طھط®ط±ط¬ ط§ظ„ظ‚ظˆط§ظ†ظٹظ† ظˆط§ظ„ط­ظ‚ط§ط¦ظ‚ ط§ظ„طµظ„ط¨ط© ط§ظ„طھظٹ طھط­ط±ظƒ ط§ظ„ط£ط­ط¯ط§ط«."
+            system_msg = "أنت محلل جيوسياسي وفيلسوف استراتيجي. استخرج المبادئ المؤسسة والحقائق الصلبة التي تحرك الأحداث. أعد المحتوى بالعربية فقط."
         else:
             task_desc = """Identify the most powerful, analytical, and discussion-focused moments.
             Focus strictly on moments containing deep political, military, or economic analysis, expert interviews, or major media citations.
             Avoid superficial or simple news readings.
             
             CRITICAL CONSTRAINTS for 'reason_ar':
-            1. DO NOT describe the video, the analysis, or the narrator from the outside. DO NOT use phrases like 'ظٹط·ط±ط­ ط§ظ„ظ…ظ‚ط·ط¹ ط§ظ„ط§ظپطھطھط§ط­ظٹ', 'ظٹطھظ†ط§ظˆظ„ ط§ظ„طھط­ظ„ظٹظ„', 'ظٹطµظپ ط§ظ„طھط­ظ„ظٹظ„', 'طھط³طھظ†ط¯ ظ‡ط°ظ‡ ط§ظ„ظ„ط­ط¸ط©', 'ط§ظ„ظ…ظ‚ط·ط¹ ظٹظˆط¶ط­'.
+            1. DO NOT describe the video, the analysis, or the narrator from the outside. DO NOT use phrases like 'يطرح المقطع', 'يتناول التحليل', 'يصف التحليل', 'تستند هذه اللحظة', 'المقطع يوضح'.
             2. State the core analytical argument, fact, or news directly as a statement.
             3. Follow this structure for 'reason_ar' in Arabic:
-               - [طµظٹط§ط؛ط© ط§ظ„ط­ط¬ط© ط£ظˆ ط§ظ„ط®ط¨ط± ط£ظˆ ط§ظ„طھط­ظ„ظٹظ„ ظ…ط¨ط§ط´ط±ط© ظˆط¨ط´ظƒظ„ ظ…ظˆط¶ظˆط¹ظٹ]
-               - ط®ظ„ط§طµط© طھظˆط¶ط­ ظƒظٹظپ ظٹظ…ظƒظ† ط§ط³طھط®ط¯ط§ظ… ظ‡ط°ط§ ط§ظ„ظپظٹط¯ظٹظˆ/ط§ظ„ظ…ظ‚ط·ط¹ ظ„طµظ†ط§ط¹ط© ظ†ظ‚ط§ط´ ط·ظˆظٹظ„ ظˆظ…طھط±ط§ط¨ط·.
-               - ط£ظٹ طھظ†ط§ظ‚ط¶ط§طھ ط£ظˆ ظˆط¬ظ‡ط§طھ ظ†ط¸ط± ظ…طھط¹ط§ط±ط¶ط© ظپظٹ ط§ظ„طھط­ظ„ظٹظ„ ط¥ظ† ظˆط¬ط¯طھ.
-               - ط£ظٹ طھط·ظˆط± ط¹ط§ط¬ظ„ ط£ظˆ ط®ط¨ط± ط£ط®ظٹط± ظ…طھط¹ظ„ظ‚ ط¨ط§ظ„ظ‚ط¶ظٹط© ظˆظ…طµط¯ط±ظ‡ ط¥ظ† ظˆط¬ط¯."""
+               - صياغة الحجة أو الخبر أو التحليل مباشرة وبشكل موضوعي.
+               - خلاصة توضح كيف يمكن استخدام هذه اللحظة لصناعة نقاش طويل ومترابط.
+               - أي تناقضات أو وجهات نظر متعارضة في التحليل إن وجدت.
+               - أي تطور عاجل أو خبر أخير متعلق بالقضية ومصدره إن وجد."""
             system_msg = "You are a senior geopolitical analyst. When writing 'reason_ar', write the facts and arguments directly. Never describe the video or the narrator's actions (e.g. do not say 'yashrah al-maqta'). Follow the structured format precisely in Arabic."
         prompt = f"""Below is segment (Part {part_index + 1}/{num_parts}) of a video transcript in SRT format.
 VIDEO TITLE: {title}
@@ -326,17 +328,25 @@ CONSTRAINTS:
             logger.error(f"AI error part {part_index}: {e}")
             return []
 
-    for i, part_cues in enumerate(time_windows):
-        chunk = await fetch_moments_for_part(i, part_cues)
+    semaphore = asyncio.Semaphore(2)
+
+    async def fetch_limited(i, part_cues):
+        async with semaphore:
+            return i, part_cues, await fetch_moments_for_part(i, part_cues)
+
+    tasks = [fetch_limited(i, part_cues) for i, part_cues in enumerate(time_windows)]
+    for done in asyncio.as_completed(tasks):
+        i, part_cues, chunk = await done
         if chunk:
             for h in chunk:
                 if isinstance(h, dict):
                     h["seconds"] = resolve_highlight_seconds(h, part_cues, i, duration_cap)
             all_highlights.extend(chunk)
+            logger.info(f"[AI] part {i + 1}/{num_parts}: received {len(chunk)} item(s)")
 
     all_highlights = dedupe_highlights_by_time(all_highlights, gap_sec=5.0)
     all_highlights.sort(key=lambda x: x.get("seconds", 0))
-    logger.info(f"âœ… طھظ… ط§ط³طھط®ط±ط§ط¬ {len(all_highlights)} ظ„ط­ط¸ط©")
+    logger.info(f"[AI] complete: extracted {len(all_highlights)} item(s)")
     return all_highlights
 
 
@@ -558,6 +568,42 @@ async def lifespan(app):
 app = FastAPI(title="YouTube Intelligence", lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
+
+async def run_analysis_background(video_id: int, mode: str):
+    lock_key = f"{video_id}:{mode}"
+    lock = ANALYSIS_LOCKS.setdefault(lock_key, asyncio.Lock())
+    if lock.locked():
+        return
+
+    async with lock:
+        db = SessionLocal()
+        try:
+            ANALYSIS_STATUS[lock_key] = {"state": "running", "items": 0}
+            video = db.query(Video).filter(Video.id == video_id).first()
+            if not video or not video.srt_transcript:
+                ANALYSIS_STATUS[lock_key] = {"state": "error", "error": "Missing video or transcript"}
+                return
+
+            logger.info(f"[AI Analysis] started: video_id={video_id}; mode={mode}; title={video.title}")
+            highlights = await analyze_video_highlights_ai(video.srt_transcript, title=video.title, mode=mode)
+            payload = json.dumps(highlights, ensure_ascii=False)
+            if mode == "first_principles":
+                video.first_principles = payload
+            else:
+                video.highlights = payload
+            db.add(video)
+            db.commit()
+            ANALYSIS_STATUS[lock_key] = {"state": "complete", "items": len(highlights)}
+            logger.info(f"[AI Analysis] complete: video_id={video_id}; mode={mode}; items={len(highlights)}")
+        except NvidiaRateLimitError as e:
+            ANALYSIS_STATUS[lock_key] = {"state": "error", "error": str(e)}
+            logger.error(f"[AI Analysis] rate limited: {e}")
+        except Exception as e:
+            ANALYSIS_STATUS[lock_key] = {"state": "error", "error": str(e)}
+            logger.error(f"[AI Analysis] failed: {e}")
+        finally:
+            db.close()
+
 @app.get("/api/videos")
 async def get_videos(page: int = 1, limit: int = 12, db: Session = Depends(get_db)):
     total = db.query(Video).count()
@@ -568,67 +614,101 @@ async def get_videos(page: int = 1, limit: int = 12, db: Session = Depends(get_d
             "total": total, "page": page, "limit": limit}
 
 @app.get("/api/video-insight/{video_id}")
-async def get_video_insight(video_id: int, mode: str = "highlights", db: Session = Depends(get_db)):
-    """ط¬ظ„ط¨ ط§ظ„ظ„ط­ط¸ط§طھ ط§ظ„ظ‚ظˆظٹط© ط£ظˆ ط§ظ„ظ…ط¨ط§ط¯ط¦ ط§ظ„ط£ظˆظ„ظ‰ ط¨ط§ط³طھط®ط¯ط§ظ… DownSub + OpenAI"""
+async def get_video_insight(
+    video_id: int,
+    mode: str = "highlights",
+    refresh: bool = False,
+    db: Session = Depends(get_db),
+):
+    """Fetch a transcript from DownSub and analyze it with MiniMax-M3."""
     video = db.query(Video).filter(Video.id == video_id).first()
-    if not video: raise HTTPException(404, "Video not found")
+    if not video:
+        raise HTTPException(404, "Video not found")
 
-    # Check cache
+    if mode not in {"highlights", "first_principles"}:
+        raise HTTPException(400, "Unsupported mode")
+
+    lock_key = f"{video_id}:{mode}"
     cached = video.first_principles if mode == "first_principles" else video.highlights
-    if cached:
+    if cached and not refresh:
         try:
-            return {"video_id": video_id, "highlights": json.loads(cached), "mode": mode, "cached": True}
-        except: pass
+            cached_items = json.loads(cached)
+            return {
+                "video_id": video_id,
+                "highlights": cached_items,
+                "mode": mode,
+                "cached": True,
+                "analyzing": False,
+            }
+        except Exception:
+            logger.warning(f"[Cache] invalid cached JSON ignored: video_id={video_id}; mode={mode}")
 
-    # Step 1: Get transcript from DownSub (or cache)
+    if refresh:
+        if mode == "first_principles":
+            video.first_principles = None
+        else:
+            video.highlights = None
+        db.add(video)
+        db.commit()
+        db.refresh(video)
+        cached = None
+
     if not video.srt_transcript:
-        logger.info(f"ًں”چ [DownSub] ط¬ظ„ط¨ ط§ظ„ظ†طµ ظ„ط£ظˆظ„ ظ…ط±ط© ظ„ظ€: {video.title}")
+        logger.info(f"[DownSub] transcript not cached; fetching: video_id={video_id}; title={video.title}")
         result = await asyncio.to_thread(fetch_youtube_subs_downsub, video.url)
         srt = result.get("srt")
-        if srt:
-            video.srt_transcript = srt
-            video.full_transcript = result.get("txt")
-            if result.get("title"):
-                video.title = result.get("title")
-            db.add(video)
-            db.commit()
-            db.refresh(video)
-            logger.info(f"âœ… [Cache] طھظ… ط­ظپط¸ ط§ظ„ظ†طµ ظˆط§ظ„ط¹ظ†ظˆط§ظ† ({video.title}) ظپظٹ ظ‚ط§ط¹ط¯ط© ط§ظ„ط¨ظٹط§ظ†ط§طھ ط¨ظ†ط¬ط§ط­")
-        else:
-            return {"video_id": video_id, "highlights": [], "mode": mode, "error": result.get("error", "ظپط´ظ„ ط¬ظ„ط¨ ط§ظ„ظ†طµ ظ…ظ† DownSub")}
-    
-    srt = video.srt_transcript
+        if not srt:
+            return {
+                "video_id": video_id,
+                "highlights": [],
+                "mode": mode,
+                "error": result.get("error", "Failed to fetch transcript from DownSub"),
+            }
 
-    # Step 2: AI Analysis
+        video.srt_transcript = srt
+        video.full_transcript = result.get("txt")
+        if result.get("title"):
+            video.title = result.get("title")
+        db.add(video)
+        db.commit()
+        db.refresh(video)
+        logger.info(f"[Cache] saved transcript: video_id={video_id}; title={video.title}")
+
     if not NVIDIA_API_TOKEN:
         return {"video_id": video_id, "highlights": [], "mode": mode, "error": "NVIDIA_API_TOKEN is not configured"}
 
-    logger.info(f"ًں§  [AI Analysis] ط¨ط¯ط، طھط­ظ„ظٹظ„ {mode} ظ„ظ€: {video.title}")
-    highlights = await analyze_video_highlights_ai(srt, title=video.title, mode=mode)
-    
-    # Cache result
-    if highlights:
-        if mode == "first_principles":
-            video.first_principles = json.dumps(highlights, ensure_ascii=False)
-        else:
-            video.highlights = json.dumps(highlights, ensure_ascii=False)
-        
-        db.add(video)
-        db.commit()
-        logger.info(f"ًں’¾ [Cache Save] طھظ… ط­ظپط¸ ظ†طھط§ط¦ط¬ {mode} ظپظٹ ظ‚ط§ط¹ط¯ط© ط§ظ„ط¨ظٹط§ظ†ط§طھ")
+    status = ANALYSIS_STATUS.get(lock_key, {})
+    if status.get("state") != "running":
+        logger.info(f"[AI Analysis] scheduling: video_id={video_id}; mode={mode}; title={video.title}")
+        ANALYSIS_STATUS[lock_key] = {"state": "running", "items": 0}
+        asyncio.create_task(run_analysis_background(video_id, mode))
+    else:
+        logger.info(f"[AI Analysis] already running: video_id={video_id}; mode={mode}")
 
-    return {"video_id": video_id, "highlights": highlights, "mode": mode, "cached": False}
+    return {
+        "video_id": video_id,
+        "highlights": [],
+        "mode": mode,
+        "cached": False,
+        "analyzing": True,
+        "progress": ANALYSIS_STATUS.get(lock_key, {"state": "running", "items": 0}),
+    }
 
 @app.get("/api/video-insight-by-ytid/{yt_id}")
-async def get_video_insight_by_ytid(yt_id: str, mode: str = "highlights", db: Session = Depends(get_db)):
-    """ط¬ظ„ط¨ ط§ظ„ظ„ط­ط¸ط§طھ ط¨ط§ط³طھط®ط¯ط§ظ… ظ…ط¹ط±ظپ ظٹظˆطھظٹظˆط¨ ط¨ط¯ظ„ط§ظ‹ ظ…ظ† ظ…ط¹ط±ظپ ظ‚ط§ط¹ط¯ط© ط§ظ„ط¨ظٹط§ظ†ط§طھ (ظ…ظپظٹط¯ ظ„ط¥ط¶ط§ظپط© ط§ظ„ظ…طھطµظپط­)"""
+async def get_video_insight_by_ytid(
+    yt_id: str,
+    mode: str = "highlights",
+    refresh: bool = False,
+    db: Session = Depends(get_db),
+):
+    """Fetch insight by YouTube video id."""
     video = db.query(Video).filter(Video.video_id == yt_id).first()
     if not video:
         # Fallback if video_id is not exactly stored but url contains it
         video = db.query(Video).filter(Video.url.like(f"%{yt_id}%")).first()
     
     if not video:
-        # طھظ„ظ‚ط§ط¦ظٹط§ظ‹ ط¥ظ†ط´ط§ط، ط³ط¬ظ„ ظ„ظ„ظپظٹط¯ظٹظˆ ط¥ط°ط§ ظ„ظ… ظٹظƒظ† ظ…ظˆط¬ظˆط¯ط§ظ‹
+        # Create the video record on demand for the browser extension.
         video = Video(
             title="YouTube Video",
             url=f"https://www.youtube.com/watch?v={yt_id}",
@@ -638,21 +718,21 @@ async def get_video_insight_by_ytid(yt_id: str, mode: str = "highlights", db: Se
         db.add(video)
         db.commit()
         db.refresh(video)
-        logger.info(f"âœ¨ [Auto-Create] طھظ… ط¥ظ†ط´ط§ط، ط³ط¬ظ„ ط¬ط¯ظٹط¯ ظ„ظ„ظپظٹط¯ظٹظˆ {yt_id} طھظ„ظ‚ط§ط¦ظٹط§ظ‹")
+        logger.info(f"[Video] created record for YouTube id {yt_id}")
     
-    return await get_video_insight(video.id, mode, db)
+    return await get_video_insight(video.id, mode, refresh, db)
 
 @app.post("/api/telegram-publish/{video_id}")
 async def publish_to_telegram(video_id: int, db: Session = Depends(get_db)):
     video = db.query(Video).filter(Video.id == video_id).first()
     if not video: raise HTTPException(404)
     
-    msg = f"ًںژ¬ {video.title}\n\nًں”— {video.url}"
+    msg = f"{video.title}\n\n{video.url}"
     try:
         r = requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
                           json={"chat_id": CHANNEL_ID, "text": msg, "parse_mode": "HTML"}, timeout=15)
         if r.status_code == 200:
-            return {"status": "success", "message": "طھظ… ط§ظ„ظ†ط´ط± ط¨ظ†ط¬ط§ط­!"}
+            return {"status": "success", "message": "Published successfully."}
         return {"status": "error", "message": f"ط®ط·ط£: {r.text}"}
     except Exception as e:
         return {"status": "error", "message": str(e)}

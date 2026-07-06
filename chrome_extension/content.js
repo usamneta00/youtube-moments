@@ -63,6 +63,17 @@ function sendRuntimeMessage(payload) {
     return Promise.reject(new Error("Extension runtime is not available. Reload the extension and refresh YouTube."));
 }
 
+async function fetchInsightDirect(payload) {
+    const refresh = payload.refresh ? "&refresh=true" : "";
+    const url = `https://youtube-moments-production.up.railway.app/api/video-insight-by-ytid/${payload.ytId}?mode=${payload.mode}${refresh}`;
+    const response = await fetch(url);
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || data.error) {
+        throw new Error(data.detail || data.error || `HTTP error ${response.status}`);
+    }
+    return { success: true, data };
+}
+
 function renderHighlights(contentDiv, highlights, responseData, mode) {
     contentDiv.innerHTML = highlights.map((h, i) => `
         <div class="yt-intel-item" data-seconds="${h.seconds || 0}">
@@ -128,6 +139,10 @@ function loadInsight(mode) {
 
     const requestInsight = (showErrors = true, refresh = false) => {
         sendMessageWithRetry({ ...msgPayload, refresh })
+            .catch((error) => {
+                console.warn('[yt-intelligence] Runtime message failed, using direct fetch:', error.message);
+                return fetchInsightDirect({ ...msgPayload, refresh });
+            })
             .then((response) => {
                 if (!response || !response.success || (response.data && response.data.error)) {
                     const errorMsg = response?.data?.error || response?.error || 'Could not connect to the local server. Make sure server.py is running.';
