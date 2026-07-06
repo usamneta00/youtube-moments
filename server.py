@@ -234,14 +234,14 @@ def nvidia_ai_chat(messages):
     payload = {
         "model": NVIDIA_MODEL,
         "messages": messages,
-        "max_tokens": 2048,
+        "max_tokens": 1200,
         "temperature": 0.2,
         "top_p": 0.95,
         "stream": False,
     }
 
     for attempt in range(3):
-        response = requests.post(NVIDIA_API_URL, headers=headers, json=payload, timeout=(10, 180))
+        response = requests.post(NVIDIA_API_URL, headers=headers, json=payload, timeout=(10, 75))
 
         if response.status_code == 429:
             wait_seconds = min(int(response.headers.get("Retry-After", 20)), 60)
@@ -266,7 +266,7 @@ def nvidia_ai_chat(messages):
 
     return ""
 
-async def analyze_video_highlights_ai(srt_content, duration=0, title="", mode="highlights"):
+async def analyze_video_highlights_ai(srt_content, duration=0, title="", mode="highlights", progress_callback=None):
     if not NVIDIA_API_TOKEN or not srt_content:
         return []
     
@@ -332,17 +332,26 @@ CONSTRAINTS:
 
     async def fetch_limited(i, part_cues):
         async with semaphore:
+            logger.info(f"[AI] part {i + 1}/{num_parts}: sending to MiniMax")
             return i, part_cues, await fetch_moments_for_part(i, part_cues)
 
     tasks = [fetch_limited(i, part_cues) for i, part_cues in enumerate(time_windows)]
+    completed_count = 0
     for done in asyncio.as_completed(tasks):
         i, part_cues, chunk = await done
+        completed_count += 1
         if chunk:
             for h in chunk:
                 if isinstance(h, dict):
                     h["seconds"] = resolve_highlight_seconds(h, part_cues, i, duration_cap)
             all_highlights.extend(chunk)
+            all_highlights = dedupe_highlights_by_time(all_highlights, gap_sec=5.0)
+            all_highlights.sort(key=lambda x: x.get("seconds", 0))
             logger.info(f"[AI] part {i + 1}/{num_parts}: received {len(chunk)} item(s)")
+            if progress_callback:
+                await progress_callback(all_highlights, completed_count, num_parts, False)
+        elif progress_callback:
+            await progress_callback(all_highlights, completed_count, num_parts, False)
 
     all_highlights = dedupe_highlights_by_time(all_highlights, gap_sec=5.0)
     all_highlights.sort(key=lambda x: x.get("seconds", 0))
@@ -584,8 +593,36 @@ async def run_analysis_background(video_id: int, mode: str):
                 ANALYSIS_STATUS[lock_key] = {"state": "error", "error": "Missing video or transcript"}
                 return
 
+            async def save_partial(items, completed_parts, total_parts, complete=False):
+                current = db.query(Video).filter(Video.id == video_id).first()
+                if not current:
+                    return
+                payload = json.dumps(items, ensure_ascii=False)
+                if mode == "first_principles":
+                    current.first_principles = payload
+                else:
+                    current.highlights = payload
+                db.add(current)
+                db.commit()
+                ANALYSIS_STATUS[lock_key] = {
+                    "state": "complete" if complete else "running",
+                    "items": len(items),
+                    "completed_parts": total_parts if complete else completed_parts,
+                    "total_parts": total_parts,
+                }
+                logger.info(
+                    f"[AI Analysis] {'complete' if complete else 'partial'}: "
+                    f"video_id={video_id}; mode={mode}; items={len(items)}; "
+                    f"parts={ANALYSIS_STATUS[lock_key]['completed_parts']}/{total_parts}"
+                )
+
             logger.info(f"[AI Analysis] started: video_id={video_id}; mode={mode}; title={video.title}")
-            highlights = await analyze_video_highlights_ai(video.srt_transcript, title=video.title, mode=mode)
+            highlights = await analyze_video_highlights_ai(
+                video.srt_transcript,
+                title=video.title,
+                mode=mode,
+                progress_callback=save_partial,
+            )
             payload = json.dumps(highlights, ensure_ascii=False)
             if mode == "first_principles":
                 video.first_principles = payload
@@ -593,7 +630,8 @@ async def run_analysis_background(video_id: int, mode: str):
                 video.highlights = payload
             db.add(video)
             db.commit()
-            ANALYSIS_STATUS[lock_key] = {"state": "complete", "items": len(highlights)}
+            total_parts = ANALYSIS_STATUS.get(lock_key, {}).get("total_parts") or 0
+            ANALYSIS_STATUS[lock_key] = {"state": "complete", "items": len(highlights), "completed_parts": total_parts, "total_parts": total_parts}
             logger.info(f"[AI Analysis] complete: video_id={video_id}; mode={mode}; items={len(highlights)}")
         except NvidiaRateLimitError as e:
             ANALYSIS_STATUS[lock_key] = {"state": "error", "error": str(e)}
@@ -629,16 +667,19 @@ async def get_video_insight(
         raise HTTPException(400, "Unsupported mode")
 
     lock_key = f"{video_id}:{mode}"
+    status = ANALYSIS_STATUS.get(lock_key, {})
     cached = video.first_principles if mode == "first_principles" else video.highlights
     if cached and not refresh:
         try:
             cached_items = json.loads(cached)
+            analyzing = status.get("state") == "running"
             return {
                 "video_id": video_id,
                 "highlights": cached_items,
                 "mode": mode,
                 "cached": True,
-                "analyzing": False,
+                "analyzing": analyzing,
+                "progress": status,
             }
         except Exception:
             logger.warning(f"[Cache] invalid cached JSON ignored: video_id={video_id}; mode={mode}")
