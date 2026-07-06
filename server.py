@@ -296,11 +296,11 @@ async def analyze_video_highlights_ai(srt_content, duration=0, title="", mode="h
             Avoid superficial or simple news readings.
             
             CRITICAL CONSTRAINTS for 'reason_ar':
-            1. DO NOT describe the video, the analysis, or the narrator from the outside. DO NOT use phrases like 'يطرح المقطع', 'يتناول التحليل', 'يصف التحليل', 'تستند هذه اللحظة', 'المقطع يوضح'.
+            1. DO NOT describe the video, the analysis, or the narrator from the outside. DO NOT use phrases like 'يطرح المقطع الافتتاحي', 'يتناول التحليل', 'يصف التحليل', 'تستند هذه اللحظة', 'المقطع يوضح'.
             2. State the core analytical argument, fact, or news directly as a statement.
             3. Follow this structure for 'reason_ar' in Arabic:
-               - صياغة الحجة أو الخبر أو التحليل مباشرة وبشكل موضوعي.
-               - خلاصة توضح كيف يمكن استخدام هذه اللحظة لصناعة نقاش طويل ومترابط.
+               - [صياغة الحجة أو الخبر أو التحليل مباشرة وبشكل موضوعي]
+               - خلاصة توضح كيف يمكن استخدام هذا الفيديو/المقطع لصناعة نقاش طويل ومترابط.
                - أي تناقضات أو وجهات نظر متعارضة في التحليل إن وجدت.
                - أي تطور عاجل أو خبر أخير متعلق بالقضية ومصدره إن وجد."""
             system_msg = "You are a senior geopolitical analyst. When writing 'reason_ar', write the facts and arguments directly. Never describe the video or the narrator's actions (e.g. do not say 'yashrah al-maqta'). Follow the structured format precisely in Arabic."
