@@ -129,7 +129,7 @@ def parse_srt_cues(srt_content: str) -> List[Dict[str, Any]]:
         cues.append({"start_str": start_str, "end_str": end_str, "start_sec": ss, "end_sec": es, "text": text})
     return cues
 
-def split_cues_into_time_windows(cues, window_sec=240, max_chars=5000):
+def split_cues_into_time_windows(cues, window_sec=180, max_chars=3200):
     if not cues: return []
     chunks, chunk = [], [cues[0]]
     anchor = cues[0]["start_sec"]
@@ -241,14 +241,14 @@ def nvidia_ai_chat(messages):
     payload = {
         "model": NVIDIA_MODEL,
         "messages": messages,
-        "max_tokens": 700,
+        "max_tokens": 1100,
         "temperature": 0.2,
         "top_p": 0.95,
         "stream": False,
     }
 
     for attempt in range(3):
-        response = requests.post(NVIDIA_API_URL, headers=headers, json=payload, timeout=(10, 45))
+        response = requests.post(NVIDIA_API_URL, headers=headers, json=payload, timeout=(10, 70))
 
         if response.status_code == 429:
             wait_seconds = min(int(response.headers.get("Retry-After", 20)), 60)
@@ -283,7 +283,7 @@ async def analyze_video_highlights_ai(srt_content, duration=0, title="", mode="h
     max_end = max(c["end_sec"] for c in cues)
     duration_cap = int(max(duration, int(max_end) + 1)) if duration > 0 else int(max_end) + 1
     
-    time_windows = split_cues_into_time_windows(cues, window_sec=240, max_chars=5000)
+    time_windows = split_cues_into_time_windows(cues, window_sec=180, max_chars=3200)
     num_parts = len(time_windows)
     all_highlights = []
     logger.info(f"[AI] mode={mode}; transcript split into {num_parts} part(s)")
@@ -296,16 +296,16 @@ async def analyze_video_highlights_ai(srt_content, duration=0, title="", mode="h
             task_desc = "استخرج أهم مبدأين تأسيسيين فقط من هذا الجزء. اكتب بالعربية فقط."
             system_msg = "أنت محلل جيوسياسي وفيلسوف استراتيجي. استخرج المبادئ المؤسسة والحقائق الصلبة التي تحرك الأحداث. أعد المحتوى بالعربية فقط."
         else:
-            task_desc = """اختر أقوى لحظتين فقط تصلحان لصناعة نقاش طويل ومترابط.
-ركز على السياسة أو الحرب أو الاقتصاد أو تصريحات الخبراء أو الاستشهادات الإعلامية المهمة.
-تجاهل القراءة الخبرية السطحية.
-في reason_ar اكتب مباشرة:
-1. الحجة أو الخبر أو التحليل.
-2. لماذا تصلح اللحظة لبناء نقاش طويل ومترابط.
-3. التناقضات أو وجهات النظر المتعارضة إن وجدت.
-4. أي تطور عاجل أو خبر أخير مذكور في النص ومصدره إن وجد.
-ممنوع وصف الفيديو من الخارج؛ لا تقل: يطرح المقطع، يتناول التحليل، يصف التحليل، المقطع يوضح."""
-            system_msg = "You are a senior geopolitical analyst. Return concise Arabic JSON only. Write facts and arguments directly; never describe the video or narrator."
+            task_desc = """Identify the most powerful, analytical, and discussion-focused moments.
+Focus strictly on moments containing deep political, military, or economic analysis, expert interviews, or major media citations.
+Avoid superficial or simple news readings.
+
+CRITICAL CONSTRAINTS for reason_ar:
+1. DO NOT describe the video, the analysis, or the narrator from the outside. DO NOT use phrases like 'يطرح المقطع الافتتاحي', 'يتناول التحليل', 'يصف التحليل', 'تستند هذه اللحظة', 'المقطع يوضح'.
+2. State the core analytical argument, fact, or news directly as a statement.
+3. The reason_ar must be one connected Arabic paragraph, not bullet points.
+4. In that paragraph include: the direct argument/news/analysis, how it can build a long coherent discussion, contradictions or opposing viewpoints if present, and any urgent/latest development mentioned with its source if present."""
+            system_msg = "You are a senior geopolitical analyst. Write facts and arguments directly in Arabic. Never describe the video or narrator. Return valid JSON only."
         prompt = f"""Below is segment (Part {part_index + 1}/{num_parts}) of a video transcript in SRT format.
 VIDEO TITLE: {title}
 TIME RANGE: {t0} to {t1}
@@ -314,7 +314,7 @@ CONSTRAINTS:
 1. EVERYTHING in ARABIC.
 2. Result strictly in JSON list. No markdown.
 3. Return at most 2 moments.
-4. For each moment: title (max 5 words), start_time (exact SRT timestamp), seconds (integer), reason_ar (4 concise lines max).
+4. For each moment: title (max 5 words), start_time (exact SRT timestamp), seconds (integer), reason_ar (one connected paragraph, no bullets).
         SRT SEGMENT:
 {part_srt}"""
 
