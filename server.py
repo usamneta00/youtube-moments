@@ -530,10 +530,12 @@ async def get_video_insight(video_id: int, mode: str = "highlights", db: Session
         if srt:
             video.srt_transcript = srt
             video.full_transcript = result.get("txt")
+            if result.get("title"):
+                video.title = result.get("title")
             db.add(video)
             db.commit()
             db.refresh(video)
-            logger.info(f"✅ [Cache] تم حفظ النص في قاعدة البيانات بنجاح")
+            logger.info(f"✅ [Cache] تم حفظ النص والعنوان ({video.title}) في قاعدة البيانات بنجاح")
         else:
             return {"video_id": video_id, "highlights": [], "mode": mode, "error": result.get("error", "فشل جلب النص من DownSub")}
     
@@ -568,7 +570,17 @@ async def get_video_insight_by_ytid(yt_id: str, mode: str = "highlights", db: Se
         video = db.query(Video).filter(Video.url.like(f"%{yt_id}%")).first()
     
     if not video:
-        raise HTTPException(404, "Video not found in your dashboard. Scraper hasn't processed it yet.")
+        # تلقائياً إنشاء سجل للفيديو إذا لم يكن موجوداً
+        video = Video(
+            title="YouTube Video",
+            url=f"https://www.youtube.com/watch?v={yt_id}",
+            video_id=yt_id,
+            scraped_at=datetime.now()
+        )
+        db.add(video)
+        db.commit()
+        db.refresh(video)
+        logger.info(f"✨ [Auto-Create] تم إنشاء سجل جديد للفيديو {yt_id} تلقائياً")
     
     return await get_video_insight(video.id, mode, db)
 

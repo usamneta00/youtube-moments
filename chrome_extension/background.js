@@ -8,10 +8,20 @@ runtimeAPI.onMessage.addListener((request, sender, sendResponse) => {
     }
 
     const refresh = request.refresh ? "&refresh=true" : "";
-    const url = `http://127.0.0.1:8000/api/video-insight-by-ytid/${request.ytId}?mode=${request.mode}${refresh}`;
+    const url = `https://youtube-moments-production.up.railway.app/api/video-insight-by-ytid/${request.ytId}?mode=${request.mode}${refresh}`;
 
     fetch(url)
-        .then(res => res.json())
+        .then(async res => {
+            if (!res.ok) {
+                try {
+                    const errData = await res.json();
+                    throw new Error(errData.detail || `HTTP error! Status: ${res.status}`);
+                } catch (e) {
+                    throw new Error(e.message || `HTTP error! Status: ${res.status}`);
+                }
+            }
+            return res.json();
+        })
         .then(data => sendResponse({ success: true, data: data }))
         .catch(error => sendResponse({ success: false, error: error.message }));
 
