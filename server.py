@@ -333,22 +333,16 @@ CONSTRAINTS:
             logger.error(f"AI error part {part_index}: {e}")
             return None
 
-    semaphore = asyncio.Semaphore(2)
-
-    async def fetch_limited(i, part_cues):
-        async with semaphore:
-            logger.info(f"[AI] part {i + 1}/{num_parts}: sending to MiniMax")
-            try:
-                return i, part_cues, await fetch_moments_for_part(i, part_cues)
-            except (NvidiaRateLimitError, Timeout):
-                logger.error(f"[AI] part {i + 1}/{num_parts}: MiniMax request timed out or rate limited")
-                return i, part_cues, None
-
-    tasks = [fetch_limited(i, part_cues) for i, part_cues in enumerate(time_windows)]
     completed_count = 0
     failed_count = 0
-    for done in asyncio.as_completed(tasks):
-        i, part_cues, chunk = await done
+    for i, part_cues in enumerate(time_windows):
+        logger.info(f"[AI] part {i + 1}/{num_parts}: sending to MiniMax")
+        try:
+            chunk = await fetch_moments_for_part(i, part_cues)
+        except (NvidiaRateLimitError, Timeout):
+            logger.error(f"[AI] part {i + 1}/{num_parts}: MiniMax request timed out or rate limited")
+            chunk = None
+
         completed_count += 1
         if chunk is None:
             failed_count += 1
