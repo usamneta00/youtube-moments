@@ -3,7 +3,6 @@ import json
 import logging
 import os
 import re
-import math
 import asyncio
 import threading
 import zipfile
@@ -284,7 +283,7 @@ async def analyze_video_highlights_ai(srt_content, duration=0, title="", mode="h
     max_end = max(c["end_sec"] for c in cues)
     duration_cap = int(max(duration, int(max_end) + 1)) if duration > 0 else int(max_end) + 1
     
-    time_windows = split_cues_into_time_windows(cues, window_sec=120, max_chars=2600)
+    time_windows = split_cues_into_time_windows(cues, window_sec=180, max_chars=3200)
     num_parts = len(time_windows)
     all_highlights = []
     logger.info(f"[AI] mode={mode}; transcript split into {num_parts} part(s)")
@@ -292,18 +291,16 @@ async def analyze_video_highlights_ai(srt_content, duration=0, title="", mode="h
     async def fetch_moments_for_part(part_index, part_cues):
         part_srt = cues_to_srt_string(part_cues)
         t0, t1 = part_cues[0]["start_str"], part_cues[-1]["end_str"]
-        part_duration = max(1, part_cues[-1]["end_sec"] - part_cues[0]["start_sec"])
 
         if mode == "first_principles":
             task_desc = "استخرج أهم مبدأين تأسيسيين فقط من هذا الجزء. اكتب بالعربية فقط."
             system_msg = "أنت محلل جيوسياسي وفيلسوف استراتيجي. استخرج المبادئ المؤسسة والحقائق الصلبة التي تحرك الأحداث. أعد المحتوى بالعربية فقط."
             max_moments = 2
         else:
-            max_moments = max(3, min(5, int(math.ceil(part_duration / 45))))
+            max_moments = 4
             task_desc = """Identify the most powerful, analytical, and discussion-focused moments.
-Extract every distinct discussion point that can support a meaningful standalone moment, especially political, military, or economic analysis, expert interviews, major media citations, contradictions, rebuttals, or opposing viewpoints.
-Do not collapse separate arguments into one moment just because they appear in the same transcript segment.
-Avoid only superficial filler, greetings, sponsorships, and simple repeated news readings.
+Focus strictly on moments containing deep political, military, or economic analysis, expert interviews, major media citations, contradictions, rebuttals, or opposing viewpoints.
+Avoid superficial or simple news readings.
 
 CRITICAL CONSTRAINTS for reason_ar:
 1. DO NOT describe the video, the analysis, or the narrator from the outside. DO NOT use phrases like 'يطرح المقطع الافتتاحي', 'يتناول التحليل', 'يصف التحليل', 'تستند هذه اللحظة', 'المقطع يوضح'.
@@ -318,7 +315,7 @@ TASK: {task_desc}
 CONSTRAINTS:
 1. EVERYTHING in ARABIC.
 2. Result strictly in JSON list. No markdown.
-3. Return up to {max_moments} moments. If the segment contains several distinct debated points, include them instead of summarizing them into one item.
+3. Return at most {max_moments} moments.
 4. For each moment: title (max 5 words), start_time (exact SRT timestamp), seconds (integer), reason_ar (one connected paragraph, no bullets).
         SRT SEGMENT:
 {part_srt}"""
