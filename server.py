@@ -183,7 +183,7 @@ def dedupe_highlights_by_time(highlights, gap_sec=4.0):
 
 def fetch_youtube_subs_downsub(video_url, formats=['txt', 'srt']):
     api_url = 'https://api.downsub.com/download'
-    headers = {'Authorization': 'Bearer AIzalTjrrsT1cKdr4HSWUryzgFRiqNYc8XBzztm', 'Content-Type': 'application/json'}
+    headers = {'Authorization': 'Bearer AIzaBx9po7cMk0ooPwWjTd3YkRhz053AzfT-hGu', 'Content-Type': 'application/json'}
     payload = {'url': video_url}
     results = {"srt": None, "txt": None, "title": None, "error": None}
     max_retries = 3
