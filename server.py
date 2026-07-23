@@ -1,4 +1,4 @@
-﻿import time
+import time
 import json
 import logging
 import os
@@ -178,50 +178,86 @@ def dedupe_highlights_by_time(highlights, gap_sec=4.0):
 
 
 # ============================================
-# DownSub API
+# yt-dlp Transcript Fetcher
 # ============================================
 
 def fetch_youtube_subs_downsub(video_url, formats=['txt', 'srt']):
-    api_url = 'https://api.downsub.com/download'
-    headers = {'Authorization': 'Bearer AIzaBx9po7cMk0ooPwWjTd3YkRhz053AzfT-hGu', 'Content-Type': 'application/json'}
-    payload = {'url': video_url}
-    results = {"srt": None, "txt": None, "title": None, "error": None}
-    max_retries = 3
+    """
+    جلب الترجمة باستخدام yt-dlp بدلاً من DownSub
+    """
+    import subprocess
+    import tempfile
+    import base64
 
-    for attempt in range(1, max_retries + 1):
-        try:
-            logger.info(f"[DownSub] attempt {attempt}/{max_retries}: fetching transcript for {video_url}")
-            resp = requests.post(api_url, headers=headers, json=payload, timeout=55)
-            resp.raise_for_status()
-            data = resp.json()
-            if data.get('status') != 'success':
-                return {**results, "error": data.get('message', 'Unknown error')}
-            
-            subs = data.get('data', {}).get('subtitles', [])
-            if not subs:
-                return {**results, "error": "No subtitles were found for this video"}
-            
-            results["title"] = data.get('data', {}).get('title')
-            selected = subs[0]
-            for sub in subs:
-                if "auto-generated" not in sub.get('language', '').lower():
-                    selected = sub; break
-            
-            for fmt in selected.get('formats', []):
-                f_type = fmt.get('format')
-                if f_type in formats:
-                    try:
-                        f_resp = requests.get(fmt.get('url'), timeout=90)
-                        f_resp.raise_for_status()
-                        results[f_type] = f_resp.text
-                    except: pass
-            
-            if results.get('srt') or results.get('txt'):
-                return results
-        except Exception as e:
-            if attempt < max_retries: time.sleep(2 ** (attempt - 1))
+    results = {"srt": None, "txt": None, "title": None, "error": None}
     
-    return {**results, "error": "Failed to fetch transcript after several attempts"}
+    with tempfile.TemporaryDirectory() as tmpdir:
+        output_template = os.path.join(tmpdir, "%(id)s")
+        cmd = [
+            "yt-dlp",
+            "--write-subs",
+            "--write-auto-subs",
+            "--sub-lang", "ar,en",
+            "--skip-download",
+            "--no-playlist",
+            "--no-warnings",
+            "--no-check-formats",
+            "--ignore-no-formats-error",
+            "-o", output_template
+        ]
+
+        cookies_b64 = os.environ.get("YOUTUBE_COOKIES")
+        if cookies_b64:
+            try:
+                cookies_path = os.path.join(tmpdir, "cookies.txt")
+                with open(cookies_path, "wb") as cf:
+                    cf.write(base64.b64decode(cookies_b64.strip()))
+                cmd.extend(["--cookies", cookies_path])
+            except Exception as e:
+                logger.warning(f"[yt-dlp] Error writing cookies: {e}")
+        elif os.path.exists("cookies.txt"):
+            cmd.extend(["--cookies", "cookies.txt"])
+        
+        cmd.append(video_url)
+
+        try:
+            logger.info(f"[yt-dlp] Fetching transcript for: {video_url}")
+            res = subprocess.run(cmd, capture_output=True, text=True, timeout=90)
+            
+            # جلب العنوان إن وجد
+            title_cmd = ["yt-dlp", "--get-title", "--no-playlist", video_url]
+            title_res = subprocess.run(title_cmd, capture_output=True, text=True, timeout=30)
+            if title_res.returncode == 0 and title_res.stdout.strip():
+                results["title"] = title_res.stdout.strip()
+
+            files = os.listdir(tmpdir)
+            sub_file = (
+                next((f for f in files if f.endswith(".ar.vtt")), None) or
+                next((f for f in files if f.endswith(".ar.srt")), None) or
+                next((f for f in files if ".ar." in f), None) or
+                next((f for f in files if f.endswith(".vtt")), None) or
+                next((f for f in files if f.endswith(".srt")), None) or
+                (files[0] if files else None)
+            )
+
+            if not sub_file:
+                results["error"] = "لم يتم العثور على ترجمة لهذا الفيديو عبر yt-dlp"
+                return results
+
+            with open(os.path.join(tmpdir, sub_file), "r", encoding="utf-8", errors="ignore") as f:
+                content = f.read()
+
+            results["srt"] = content
+            results["txt"] = content
+            return results
+
+        except subprocess.TimeoutExpired:
+            results["error"] = "انتهت مهلة جلب الترجمة عبر yt-dlp"
+            return results
+        except Exception as e:
+            logger.error(f"[yt-dlp] Error: {e}")
+            results["error"] = f"خطأ أثناء تشغيل yt-dlp: {str(e)}"
+            return results
 
 
 # ============================================
@@ -731,7 +767,7 @@ async def get_video_insight(
         cached = None
 
     if not video.srt_transcript:
-        logger.info(f"[DownSub] transcript not cached; fetching: video_id={video_id}; title={video.title}")
+        logger.info(f"[yt-dlp] transcript not cached; fetching: video_id={video_id}; title={video.title}")
         result = await asyncio.to_thread(fetch_youtube_subs_downsub, video.url)
         srt = result.get("srt")
         if not srt:
